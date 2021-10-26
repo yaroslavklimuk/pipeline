@@ -11,11 +11,9 @@ var canMD5 atomic.Value
 var SingleHash = func(in, out chan interface{}) {
 	for val := range in {
 		var results [2]string
-		notifChan := make(chan int)
-		wg.Add(2)
+		notifChan := make(chan struct{})
 
-		go func(val string, resultArr []string, notifChan chan int) {
-			defer wg.Done()
+		go func(val string, resultArr []string, notifChan chan struct{}) {
 			for {
 				if true == canMD5.Load() {
 					canMD5.Store(false)
@@ -26,22 +24,18 @@ var SingleHash = func(in, out chan interface{}) {
 			md5v := DataSignerMd5(val)
 			canMD5.Store(true)
 			resultArr[1] = DataSignerCrc32(md5v)
-			notifChan <- 1
+			notifChan <- struct{}{}
 		}(val.(string), results[:], notifChan)
 
-		go func(val string, resultArr []string, notifChan chan int) {
-			defer wg.Done()
+		go func(val string, resultArr []string, notifChan chan struct{}) {
 			resultArr[0] = DataSignerCrc32(val)
-			notifChan <- 1
+			notifChan <- struct{}{}
 		}(val.(string), results[:], notifChan)
 
-		resultsCount := 0
-		for one := range notifChan {
-			resultsCount += one
-			if resultsCount == 2 {
-				out <- strings.Join(results[:], "~")
-				break
-			}
-		}
+		<- notifChan
+		<- notifChan
+		close(notifChan)
+		out <- strings.Join(results[:], "~")
 	}
+	close(out)
 }

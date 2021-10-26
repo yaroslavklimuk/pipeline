@@ -15,17 +15,28 @@ const (
 	MaxInputDataLen = 100
 )
 
-func MakeJobsList() []job {
+func MakeJobsList(testResult *string) []job {
 	jobsStack := []job{
 		job(func(in, out chan interface{}) {
 			inputData := []int{0, 1, 1, 2, 3, 5, 8}
 			for _, fibNum := range inputData {
 				out <- strconv.Itoa(fibNum)
 			}
+			close(in)
+			close(out)
 		}),
 		job(SingleHash),
 		job(MultiHash),
 		job(CombineResults),
+		job(func(in, out chan interface{}) {
+			for dataRaw := range in {
+				data, ok := dataRaw.(string)
+				if ok {
+					*testResult += data
+				}
+			}
+			close(out)
+		}),
 	}
 	return jobsStack
 }
@@ -33,53 +44,26 @@ func MakeJobsList() []job {
 func ExecutePipeline(jobsList ...job) {
 	jobsCount := len(jobsList)
 	channels := make([]chan interface{}, jobsCount+1)
-	channels[0] = make(chan interface{})
 	canMD5.Store(true)
-
-	i := 0
-	channels[i+1] = make(chan interface{})
-	func(in, out chan interface{}) {
-		inputData := []int{0, 1, 1, 2, 3, 5, 8}
-		for _, fibNum := range inputData {
-			out <- strconv.Itoa(fibNum)
-		}
-	}(channels[i], channels[i+1])
-
-	i = i + 1
-	channels[i+1] = make(chan interface{})
-	SingleHash(channels[i], channels[i+1])
-
-	i = i + 1
-	channels[i+1] = make(chan interface{})
-	MultiHash(channels[i], channels[i+1])
-
-	i = i + 1
-	channels[i+1] = make(chan interface{})
-	CombineResults(channels[i], channels[i+1])
-
-	// for i := 0; i <= jobsCount-1; i = i + 1 {
-	// 	singleJob := jobsList[jobsCount-1-i]
-	// 	channels[i+1] = make(chan interface{})
-	// 	singleJob(channels[i], channels[i+1])
-	// }
-
-	// for i := 0; i <= jobsCount-1; i = i + 1 {
-	// 	singleJob := jobsList[i]
-	// 	channels[i+1] = make(chan interface{})
-	// 	singleJob(channels[i], channels[i+1])
-	// }
-	wg.Wait()
-	for item := range channels[jobsCount] {
-		stv := fmt.Sprintf("%v", item)
-		fmt.Println(stv)
+	channels[jobsCount] = make(chan interface{})
+	for i := jobsCount - 1; i >= 0; i-- {
+		channels[i] = make(chan interface{})
+		wg.Add(1)
+		go func(ind int) {
+			jobsList[ind](channels[ind], channels[ind+1])
+			wg.Done()
+		}(i)
 	}
+	wg.Wait()
 }
 
 func main() {
-	jobs := MakeJobsList()
+	testResult := ""
+	jobs := MakeJobsList(&testResult)
 	start := time.Now()
 	ExecutePipeline(jobs...)
 	end := time.Since(start)
 	fmt.Printf("Started at: %s\n", start)
 	fmt.Printf("Finished in: %s\n", end)
+	fmt.Printf("Result: %s\n", testResult)
 }
