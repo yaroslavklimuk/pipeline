@@ -15,7 +15,7 @@ const (
 	MaxInputDataLen = 100
 )
 
-func MakeJobsList() []job {
+func MakeJobsList(testResult *string) []job {
 	jobsStack := []job{
 		job(func(in, out chan interface{}) {
 			inputData := []int{0, 1, 1, 2, 3, 5, 8}
