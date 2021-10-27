@@ -37,5 +37,4 @@ var SingleHash = func(in, out chan interface{}) {
 		close(notifChan)
 		out <- strings.Join(results[:], "~")
 	}
-	close(out)
 }

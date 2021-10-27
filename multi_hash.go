@@ -20,5 +20,4 @@ var MultiHash = func(in, out chan interface{}) {
 		}
 		out <- strings.Join(results[:], "")
 	}
-	close(out)
 }

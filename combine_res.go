@@ -13,5 +13,4 @@ var CombineResults = func(in, out chan interface{}) {
 	for i := 0; i < len(results); i++ {
 		out <- results[i]
 	}
-	close(out)
 }

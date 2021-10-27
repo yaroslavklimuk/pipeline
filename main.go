@@ -15,7 +15,7 @@ const (
 	MaxInputDataLen = 100
 )
 
-func MakeJobsList(testResult *string) []job {
+func MakeJobsList() []job {
 	jobsStack := []job{
 		job(func(in, out chan interface{}) {
 			inputData := []int{0, 1, 1, 2, 3, 5, 8}
@@ -23,7 +23,6 @@ func MakeJobsList(testResult *string) []job {
 				out <- strconv.Itoa(fibNum)
 			}
 			close(in)
-			close(out)
 		}),
 		job(SingleHash),
 		job(MultiHash),
@@ -35,7 +34,6 @@ func MakeJobsList(testResult *string) []job {
 					fmt.Print(data)
 				}
 			}
-			close(out)
 		}),
 	}
 	return jobsStack
@@ -52,6 +50,7 @@ func ExecutePipeline(jobsList ...job) {
 		wg.Add(1)
 		go func(ind int) {
 			jobsList[ind](channels[ind], channels[ind+1])
+			close(channels[ind+1])
 			wg.Done()
 		}(i)
 		end := time.Since(start)
@@ -63,9 +62,9 @@ func ExecutePipeline(jobsList ...job) {
 
 func main() {
 	jobs := MakeJobsList()
-	//start := time.Now()
+	start := time.Now()
 	ExecutePipeline(jobs...)
-	//end := time.Since(start)
-	//fmt.Printf("Started at: %s\n", start)
-	//fmt.Printf("Finished in: %s\n", end)
+	end := time.Since(start)
+	fmt.Printf("Started at: %s\n", start)
+	fmt.Printf("Finished in: %s\n", end)
 }
